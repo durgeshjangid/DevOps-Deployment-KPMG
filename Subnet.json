@@ -1,0 +1,422 @@
+{
+	"Parameters": {
+		"Environment": {
+			"Description": "The environment to which the nodes belong to",
+			"Type": "String",
+			"AllowedValues": [
+				"dev",
+				"stage",
+				"prod"
+			],
+			"ConstraintDescription": "Must be valid environment name"
+		},
+		"VPC": {
+			"Description": "Name of the VPC to which the subent",
+			"Type": "String"
+		},
+		"Pod": {
+			"Description": "Name of the subnet to which instance belongs to",
+			"Type": "String"
+		},
+		"VPCID": {
+			"Description": "ID of the VPC  ",
+			"Type": "String"
+		},
+		"RouteTableId": {
+			"Description": "Route table to which to attach the subnets.",
+			"Type": "String"
+		},
+		"NATGatewayRouteTableIdA": {
+			"Description": "Route table to which to attach the private subnets in availability zone A.",
+			"Type": "String"
+		},
+		"NATGatewayRouteTableIdB": {
+			"Description": "Route table to which to attach the private subnets in availability zone B.",
+			"Type": "String"
+		},
+		"PublicServiceSubnetACidrBlock": {
+			"Description": "CIDR block for Public Service subnet1. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"PublicServiceSubnetAAZ": {
+			"Description": "AvailabilityZone for Public Service subnet1.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"PrivateServiceSubnetACidrBlock": {
+			"Description": "CIDR block for Private Service subnet1. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"PrivateServiceSubnetAAZ": {
+			"Description": "AvailabilityZone for Private Service subnet1.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"PublicServiceSubnetBCidrBlock": {
+			"Description": "CIDR block for Service subnet2. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"PublicServiceSubnetBAZ": {
+			"Description": "AvailabilityZone for Service subnet2.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"PrivateServiceSubnetBCidrBlock": {
+			"Description": "CIDR block for Private Service subnet2. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"PrivateServiceSubnetBAZ": {
+			"Description": "AvailabilityZone for Private Service subnet2.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"DatabaseSubnetACidrBlock": {
+			"Description": "CIDR block for Database subnet1. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"DatabaseSubnetAAZ": {
+			"Description": "AvailabilityZone for Database subnet1.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"DatabaseSubnetBCidrBlock": {
+			"Description": "CIDR block for Database subnet2. This Shouldnot clash with other subnets and should be subset of VpcCidrBlock ",
+			"Type": "String"
+		},
+		"DatabaseSubnetBAZ": {
+			"Description": "AvailabilityZone for Database subnet2.",
+			"Type": "AWS::EC2::AvailabilityZone::Name"
+		},
+		"RDSRouteTable": {
+			"Description": "Route table for RDS instance",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"ServiceSubnetA": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "PublicServiceSubnetAAZ"
+				},
+				"CidrBlock": {
+					"Ref": "PublicServiceSubnetACidrBlock"
+				},
+				"MapPublicIpOnLaunch": "true",
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"PrivateServiceSubnetA": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "PrivateServiceSubnetAAZ"
+				},
+				"CidrBlock": {
+					"Ref": "PrivateServiceSubnetACidrBlock"
+				},
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"ServiceSubnetB": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "PublicServiceSubnetBAZ"
+				},
+				"CidrBlock": {
+					"Ref": "PublicServiceSubnetBCidrBlock"
+				},
+				"MapPublicIpOnLaunch": "true",
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"PrivateServiceSubnetB": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "PrivateServiceSubnetBAZ"
+				},
+				"CidrBlock": {
+					"Ref": "PrivateServiceSubnetBCidrBlock"
+				},
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"DatabaseSubnetA": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "DatabaseSubnetAAZ"
+				},
+				"CidrBlock": {
+					"Ref": "DatabaseSubnetACidrBlock"
+				},
+				"MapPublicIpOnLaunch": "true",
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"DatabaseSubnetB": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"AvailabilityZone": {
+					"Ref": "DatabaseSubnetBAZ"
+				},
+				"CidrBlock": {
+					"Ref": "DatabaseSubnetBCidrBlock"
+				},
+				"MapPublicIpOnLaunch": "true",
+				"VpcId": {
+					"Ref": "VPCID"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"SubnetRouteTableAssociation1": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "ServiceSubnetA"
+				},
+				"RouteTableId": {
+					"Ref": "RouteTableId"
+				}
+			}
+		},
+		"SubnetRouteTableAssociation2": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "ServiceSubnetB"
+				},
+				"RouteTableId": {
+					"Ref": "RouteTableId"
+				}
+			}
+		},
+		"SubnetRouteTableAssociation3": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DatabaseSubnetA"
+				},
+				"RouteTableId": {
+					"Ref": "RDSRouteTable"
+				}
+			}
+		},
+		"SubnetRouteTableAssociation4": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "DatabaseSubnetB"
+				},
+				"RouteTableId": {
+					"Ref": "RDSRouteTable"
+				}
+			}
+		},
+		"SubnetRouteTableAssociation5": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "PrivateServiceSubnetA"
+				},
+				"RouteTableId": {
+					"Ref": "NATGatewayRouteTableIdA"
+				}
+			}
+		},
+		"SubnetRouteTableAssociation6": {
+			"Type": "AWS::EC2::SubnetRouteTableAssociation",
+			"Properties": {
+				"SubnetId": {
+					"Ref": "PrivateServiceSubnetB"
+				},
+				"RouteTableId": {
+					"Ref": "NATGatewayRouteTableIdB"
+				}
+			}
+		}
+	},
+	"Outputs": {
+		"PublicServiceSubnetAID": {
+			"Description": "Subnet ID of the Public Service subnet1",
+			"Value": {
+				"Ref": "ServiceSubnetA"
+			}
+		},
+		"PublicServiceSubnetAAZ": {
+			"Description": "AvailabilityZone of public subnet1",
+			"Value": {
+				"Fn::GetAtt": [
+					"ServiceSubnetA",
+					"AvailabilityZone"
+				]
+			}
+		},
+		"PrivateServiceSubnetAID": {
+			"Description": "Subnet ID of the Private Service subnet1",
+			"Value": {
+				"Ref": "PrivateServiceSubnetA"
+			}
+		},
+		"PrivateServiceSubnetAAZ": {
+			"Description": "AvailabilityZone of private subnet1",
+			"Value": {
+				"Fn::GetAtt": [
+					"PrivateServiceSubnetA",
+					"AvailabilityZone"
+				]
+			}
+		},
+		"PublicServiceSubnetBID": {
+			"Description": "Subnet ID of the Service subnet2",
+			"Value": {
+				"Ref": "ServiceSubnetB"
+			}
+		},
+		"PublicServiceSubnetBAZ": {
+			"Description": "AvailabilityZone of public subnet2",
+			"Value": {
+				"Fn::GetAtt": [
+					"ServiceSubnetB",
+					"AvailabilityZone"
+				]
+			}
+		},
+		"PrivateServiceSubnetBID": {
+			"Description": "Subnet ID of the Private Service subnet2",
+			"Value": {
+				"Ref": "PrivateServiceSubnetB"
+			}
+		},
+		"PrivateServiceSubnetBAZ": {
+			"Description": "AvailabilityZone of private subnet2",
+			"Value": {
+				"Fn::GetAtt": [
+					"PrivateServiceSubnetB",
+					"AvailabilityZone"
+				]
+			}
+		},
+		"DatabaseSubnetAID": {
+			"Description": "Subnet ID of the Database subnet1",
+			"Value": {
+				"Ref": "DatabaseSubnetA"
+			}
+		},
+		"DatabaseSubnetAAZ": {
+			"Description": "AvailabilityZone of public subnet1",
+			"Value": {
+				"Fn::GetAtt": [
+					"DatabaseSubnetA",
+					"AvailabilityZone"
+				]
+			}
+		},
+		"DatabaseSubnetBID": {
+			"Description": "Subnet ID of the Database subnet2",
+			"Value": {
+				"Ref": "DatabaseSubnetB"
+			}
+		},
+		"DatabaseSubnetBAZ": {
+			"Description": "AvailabilityZone of public subnet2",
+			"Value": {
+				"Fn::GetAtt": [
+					"DatabaseSubnetB",
+					"AvailabilityZone"
+				]
+			}
+		}
+	}
+}

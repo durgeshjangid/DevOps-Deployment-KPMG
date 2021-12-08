@@ -1,0 +1,218 @@
+{
+	"Parameters": {
+		"Environment": {
+			"Description": "The environment to which the nodes belong to",
+			"Type": "String",
+			"AllowedValues": [
+				"dev",
+				"stage",
+				"prod"
+			],
+			"ConstraintDescription": "Must be valid environment name"
+		},
+		"VpcCidrBlock": {
+			"Description": "CIDR block for VPC",
+			"Type": "String"
+		},
+		"EnableDnsSupport": {
+			"Description": "Specifies whether DNS resolution is supported for the VPC.",
+			"Type": "String",
+			"Default": "true",
+			"AllowedValues": [
+				"true",
+				"false"
+			]
+		},
+		"EnableDnsHostnames": {
+			"Description": "Specifies whether the instances launched in the VPC get DNS hostnames",
+			"Type": "String",
+			"Default": "true",
+			"AllowedValues": [
+				"true",
+				"false"
+			],
+			"ConstraintDescription": "You can only set EnableDnsHostnames to true if you also set the EnableDnsSupport attribute to true"
+		},
+		"VPC": {
+			"Description": "Name of the VPC",
+			"Type": "String"
+		},
+		"InternalDNSName": {
+			"Description": "InternalDNSName. Eg: vpc1-dev-kpmginternal.com",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"FoundationVPC": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": {
+					"Ref": "VpcCidrBlock"
+				},
+				"EnableDnsSupport": {
+					"Ref": "EnableDnsSupport"
+				},
+				"EnableDnsHostnames": {
+					"Ref": "EnableDnsHostnames"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					},
+					{
+						"Key": "Name",
+						"Value": {
+							"Fn::Join": [
+								"",
+								[
+									{
+										"Ref": "Environment"
+									},
+									"-",
+									{
+										"Ref": "VPC"
+									}
+								]
+							]
+						}
+					}
+				]
+			}
+		},
+		"FoundationInternetGateway": {
+			"Type": "AWS::EC2::InternetGateway",
+			"Properties": {
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "Purpose",
+						"Value": "DevOps"
+					}
+				]
+			}
+		},
+		"FoundationAttachGateway": {
+			"Type": "AWS::EC2::VPCGatewayAttachment",
+			"Properties": {
+				"VpcId": {
+					"Ref": "FoundationVPC"
+				},
+				"InternetGatewayId": {
+					"Ref": "FoundationInternetGateway"
+				}
+			}
+		},
+		"FoundationRouteTable": {
+			"Type": "AWS::EC2::RouteTable",
+			"Properties": {
+				"VpcId": {
+					"Ref": "FoundationVPC"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "Name"
+					},
+					{
+						"Key": "Purpose",
+						"Value": "DevOps"
+					}
+				]
+			}
+		},
+		"Route": {
+			"Type": "AWS::EC2::Route",
+			"DependsOn": "FoundationAttachGateway",
+			"Properties": {
+				"RouteTableId": {
+					"Ref": "FoundationRouteTable"
+				},
+				"DestinationCidrBlock": "0.0.0.0/0",
+				"GatewayId": {
+					"Ref": "FoundationInternetGateway"
+				}
+			}
+		},
+		"VPCInternalDNS": {
+			"Type": "AWS::Route53::HostedZone",
+			"Properties": {
+				"HostedZoneConfig": {
+					"Comment": "Private Hosted zone for the VPC"
+				},
+				"Name": {
+					"Ref": "InternalDNSName"
+				},
+				"VPCs": [
+					{
+						"VPCId": {
+							"Ref": "FoundationVPC"
+						},
+						"VPCRegion": {
+							"Ref": "AWS::Region"
+						}
+					}
+				]
+			}
+		}
+	},
+	"Outputs": {
+		"VPCID": {
+			"Description": "VPC ID of the Foundation VPC",
+			"Value": {
+				"Ref": "FoundationVPC"
+			}
+		},
+		"VPCDefaultSecurityGroup": {
+			"Description": "DefaultSecurityGroup ID of the Foundation VPC",
+			"Value": {
+				"Fn::GetAtt": [
+					"FoundationVPC",
+					"DefaultSecurityGroup"
+				]
+			}
+		},
+		"InternetGatewayID": {
+			"Description": "InternetGateway ID",
+			"Value": {
+				"Ref": "FoundationInternetGateway"
+			}
+		},
+		"RouteTableID": {
+			"Description": "RouteTable ID",
+			"Value": {
+				"Ref": "FoundationRouteTable"
+			}
+		},
+		"VPC": {
+			"Description": "VPC Name",
+			"Value": {
+				"Ref": "VPC"
+			}
+		},
+		"VPCInternalDNSHostedZoneID": {
+			"Description": "Hosted zone ID of VPC internal DNS",
+			"Value": {
+				"Ref": "VPCInternalDNS"
+			}
+		}
+	}
+}

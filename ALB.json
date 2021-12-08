@@ -1,0 +1,258 @@
+{
+	"Parameters": {
+		"Environment": {
+			"Description": "The environment to which the LB belongs to",
+			"Type": "String",
+			"AllowedValues": [
+				"dev",
+				"stage",
+				"prod"
+			],
+			"ConstraintDescription": "Must be valid environment name"
+		},
+		"SubnetIDs": {
+			"Description": "Comma separated list of subnet IDs to attach to LB. There cant be more than one subnet ID from same AZ",
+			"Type": "List<AWS::EC2::Subnet::Id>"
+		},
+		"FoundationVPCID": {
+			"Description": "VPC ID of the foundation VPC",
+			"Type": "AWS::EC2::VPC::Id"
+		},
+		"VPCCidrBlock": {
+			"Description": "CIDR block of Public subnet. ",
+			"Type": "String"
+		},
+		"VPC": {
+			"Description": "Name of the VPC ",
+			"Type": "String"
+		},
+		"ApplicationLoadBalancerName": {
+			"Description": "Name of the ApplicationLoadBalancerName",
+			"Type": "String"
+		},
+		"HostedZoneId": {
+			"Description": "HostedZone Id of VPC internal DNS",
+			"Type": "String"
+		},
+		"FortinetOwaspWebACLId": {
+			"Description": "FortinetOwaspWebACLId. ",
+			"Type": "String"
+		},
+		"TargetGroupName": {
+			"Description": "Internal Target Group Name ",
+			"Type": "String"
+		},
+		"LBInternalDomainName": {
+			"Description": "Internal Domain Name for LB Eg:  demoservice.podlb.dev-kpmginternal.com",
+			"Type": "String"
+		},
+		"SSLCertificateID": {
+			"Description": "Certificate ARN to be used for HTTPS communication",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"AVregLoadBalancerSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Allow 8080 within VPC. Allow only 443 port to whole world",
+				"SecurityGroupIngress": [
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "8080",
+						"ToPort": "8080",
+						"CidrIp": {
+							"Ref": "VPCCidrBlock"
+						}
+					},
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "443",
+						"ToPort": "443",
+						"CidrIp": "0.0.0.0/0"
+					}
+				],
+				"VpcId": {
+					"Ref": "FoundationVPCID"
+				}
+			}
+		},
+		"AppLoadBalancer": {
+			"Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+			"Properties": {
+				"Name": {
+					"Ref": "ApplicationLoadBalancerName"
+				},
+				"Scheme": "internet-facing",
+				"Subnets": {
+					"Ref": "SubnetIDs"
+				},
+				"LoadBalancerAttributes": [
+					{
+						"Key": "idle_timeout.timeout_seconds",
+						"Value": "340"
+					},
+					{
+						"Key": "routing.http2.enabled",
+						"Value": "false"
+					}
+				],
+				"SecurityGroups": [
+					{
+						"Ref": "AVregLoadBalancerSecurityGroup"
+					}
+				],
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "Demoservice"
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					},
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "Owner",
+						"Value": "KPMG"
+					}
+				]
+			}
+		},
+		"ALBTargetGroup": {
+			"Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+			"Properties": {
+				"HealthCheckIntervalSeconds": 30,
+				"HealthCheckPath": "/demo/v1/about",
+				"HealthCheckTimeoutSeconds": 5,
+				"HealthyThresholdCount": 2,
+				"HealthCheckPort": 8080,
+				"HealthCheckProtocol": "HTTP",
+				"Name": {
+					"Ref": "TargetGroupName"
+				},
+				"Port": 8080,
+				"Protocol": "HTTP",
+				"UnhealthyThresholdCount": 5,
+				"VpcId": {
+					"Ref": "FoundationVPCID"
+				},
+				"TargetGroupAttributes": [
+					{
+						"Key": "deregistration_delay.timeout_seconds",
+						"Value": "300"
+					}
+				]
+			}
+		},
+		"ALBListener": {
+			"Type": "AWS::ElasticLoadBalancingV2::Listener",
+			"Properties": {
+				"DefaultActions": [
+					{
+						"Type": "forward",
+						"TargetGroupArn": {
+							"Ref": "ALBTargetGroup"
+						}
+					}
+				],
+				"Certificates": [
+					{
+						"CertificateArn": {
+							"Ref": "SSLCertificateID"
+						}
+					}
+				],
+				"LoadBalancerArn": {
+					"Ref": "AppLoadBalancer"
+				},
+				"Port": 443,
+				"Protocol": "HTTPS",
+				"SslPolicy": "ELBSecurityPolicy-TLS-1-1-2017-01"
+			}
+		},
+		"FortinetOwaspWebACLAssociation": {
+			"Type": "AWS::WAFRegional::WebACLAssociation",
+			"Properties": {
+				"ResourceArn": {
+					"Ref": "AppLoadBalancer"
+				},
+				"WebACLId": {
+					"Ref": "FortinetOwaspWebACLId"
+				}
+			}
+		},
+		"InternalDNSMapping": {
+			"Type": "AWS::Route53::RecordSet",
+			"Properties": {
+				"AliasTarget": {
+					"HostedZoneId": {
+						"Fn::GetAtt": [
+							"AppLoadBalancer",
+							"CanonicalHostedZoneID"
+						]
+					},
+					"DNSName": {
+						"Fn::GetAtt": [
+							"AppLoadBalancer",
+							"DNSName"
+						]
+					}
+				},
+				"Comment": "Internal DNS name for Demo service load balancer",
+				"HostedZoneId": {
+					"Ref": "HostedZoneId"
+				},
+				"Name": {
+					"Ref": "LBInternalDomainName"
+				},
+				"Type": "A"
+			}
+		}
+	},
+	"Outputs": {
+		"AppLoadBalancerDNSName": {
+			"Description": "The DNSName of the  Application load balancer",
+			"Value": {
+				"Fn::GetAtt": [
+					"AppLoadBalancer",
+					"DNSName"
+				]
+			}
+		},
+		"AppLoadBalancerName": {
+			"Description": "The Name of the  Application load balancer",
+			"Value": {
+				"Ref": "AppLoadBalancer"
+			}
+		},
+		"TargetGroupArn": {
+			"Description": "The ARN of target group",
+			"Value": {
+				"Ref": "ALBTargetGroup"
+			}
+		},
+		"LoadBalancerSecurityGroupID": {
+			"Description": "SecurityGroupID of the AVreg load balancer",
+			"Value": {
+				"Fn::GetAtt": [
+					"AVregLoadBalancerSecurityGroup",
+					"GroupId"
+				]
+			}
+		},
+		"LoadBalancerInternalDNSName": {
+			"Description": "The InternalDNSName of the AVreg load balancer",
+			"Value": {
+				"Ref": "LBInternalDomainName"
+			}
+		}
+	}
+}

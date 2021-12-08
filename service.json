@@ -1,0 +1,286 @@
+{
+	"Parameters": {
+		"KeyName": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+			"Type": "String"
+		},
+		"InstanceType": {
+			"Description": "EC2 instance type",
+			"Type": "String",
+			"Default": "t3.medium",
+			"AllowedValues": [
+				"t2.nano",
+				"t2.micro",
+				"t2.small",
+				"t2.medium",
+				"t3.medium",
+				"t2.large",
+				"m4.large",
+				"m4.xlarge",
+				"m4.2xlarge",
+				"m4.4xlarge",
+				"m4.10xlarge",
+				"m3.medium",
+				"m3.large",
+				"m3.xlarge",
+				"m3.2xlarge",
+				"c4.large",
+				"c4.xlarge",
+				"c4.2xlarge",
+				"c4.4xlarge"
+			],
+			"ConstraintDescription": "must be a valid EC2 instance type."
+		},
+		"AMIID": {
+			"Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+			"Type": "AWS::EC2::Image::Id"
+		},
+		"VolumeSize": {
+			"Default": "16",
+			"Description": "EBS Volume Size in GB",
+			"Type": "Number",
+			"MinValue": "10",
+			"MaxValue": "512"
+		},
+		"MinInstances": {
+			"Default": "1",
+			"Description": "Minimum number of instances required",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "25"
+		},
+		"MaxInstances": {
+			"Default": "4",
+			"Description": "Maximum number of instances required",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "26"
+		},
+		"DesiredNumberOfInstances": {
+			"Default": "1",
+			"Description": "Desired number of instances required",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "25"
+		},
+		"Environment": {
+			"Description": "The environment to which the nodes belong to",
+			"Type": "String",
+			"AllowedValues": [
+				"dev",
+				"stage",
+				"prod"
+			],
+			"ConstraintDescription": "Must be valid environment name"
+		},
+		"VPC": {
+			"Description": "Name of the VPC to which the pod. Eg: vpc1, vpc2",
+			"Type": "String"
+		},
+		"LBName": {
+			"Description": "Load balancer name of service",
+			"Type": "String"
+		},
+		"VPCSubnetIDs": {
+			"Description": "VPC subnet ids under which ASG should be placed",
+			"Type": "List<AWS::EC2::Subnet::Id>"
+		},
+		"FoundationVPCCidrBlock": {
+			"Description": "CIDR block of foundation vpc",
+			"Type": "String"
+		},
+		"FoundationVPCID": {
+			"Description": "VPC ID of the foundation VPC",
+			"Type": "AWS::EC2::VPC::Id"
+		},
+		"LBSecurityGroupID": {
+			"Description": "LBSecurityGroupID",
+			"Type": "String"
+		},
+		"OSType": {
+			"Description": "Type of the OperatingSystem on which the AMI is based",
+			"Type": "String",
+			"AllowedValues": [
+				"RHEL",
+				"AmazonLinux"
+			]
+		},
+		"AttachedProfileARN": {
+			"Description": "ARN of the role to be attached",
+			"Type": "String"
+		},
+		"PolicyTargetValue": {
+			"Default": "70",
+			"Description": "CPU Utilization target beyond target auto scaling policy will come in place",
+			"Type": "String"
+		}
+	},
+	"Mappings": {
+		"OSMappings": {
+			"RHEL": {
+				"BlockDeviceName": "/dev/sda1"
+			},
+			"AmazonLinux": {
+				"BlockDeviceName": "/dev/xvda"
+			}
+		}
+	},
+	"Resources": {
+		"AutoScalingGroup": {
+			"Type": "AWS::AutoScaling::AutoScalingGroup",
+			"UpdatePolicy": {
+				"AutoScalingScheduledAction": {
+					"IgnoreUnmodifiedGroupSizeProperties": "true"
+				},
+				"AutoScalingRollingUpdate": {
+					"MinInstancesInService": "1",
+					"MaxBatchSize": "2",
+					"PauseTime": "PT5M"
+				}
+			},
+			"Properties": {
+				"LaunchConfigurationName": {
+					"Ref": "LaunchConfig"
+				},
+				"MinSize": {
+					"Ref": "MinInstances"
+				},
+				"MaxSize": {
+					"Ref": "MaxInstances"
+				},
+				"DesiredCapacity": {
+					"Ref": "DesiredNumberOfInstances"
+				},
+				"HealthCheckType": "ELB",
+				"LoadBalancerNames": [
+					{
+						"Ref": "LBName"
+					}
+				],
+				"VPCZoneIdentifier": {
+					"Ref": "VPCSubnetIDs"
+				},
+				"HealthCheckGracePeriod": "300",
+				"Tags": [
+					{
+						"Key": "Name",
+						"Value": "rp-avatar-reg",
+						"PropagateAtLaunch": "true"
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						},
+						"PropagateAtLaunch": "true"
+					},
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						},
+						"PropagateAtLaunch": "true"
+					},
+					{
+						"Key": "State",
+						"Value": "Critical",
+						"PropagateAtLaunch": "true"
+					}
+				]
+			}
+		},
+		"POL": {
+			"Type": "AWS::AutoScaling::ScalingPolicy",
+			"Properties": {
+				"AutoScalingGroupName": {
+					"Ref": "AutoScalingGroup"
+				},
+				"PolicyType": "TargetTrackingScaling",
+				"TargetTrackingConfiguration": {
+					"PredefinedMetricSpecification": {
+						"PredefinedMetricType": "ASGAverageCPUUtilization"
+					},
+					"TargetValue": {
+						"Ref": "PolicyTargetValue"
+					}
+				}
+			}
+		},
+		"SecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Allow all outbound access. Allow incoming ssh and 8080 from within VPC",
+				"SecurityGroupIngress": [
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "22",
+						"ToPort": "22",
+						"CidrIp": {
+							"Ref": "FoundationVPCCidrBlock"
+						}
+					},
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "8080",
+						"ToPort": "8080",
+						"SourceSecurityGroupId": {
+							"Ref": "LBSecurityGroupID"
+						}
+					}
+				],
+				"VpcId": {
+					"Ref": "FoundationVPCID"
+				}
+			}
+		},
+		"LaunchConfig": {
+			"Type": "AWS::AutoScaling::LaunchConfiguration",
+			"Properties": {
+				"KeyName": {
+					"Ref": "KeyName"
+				},
+				"ImageId": {
+					"Ref": "AMIID"
+				},
+				"SecurityGroups": [
+					{
+						"Ref": "SecurityGroup"
+					}
+				],
+				"InstanceType": {
+					"Ref": "InstanceType"
+				},
+				"IamInstanceProfile": {
+					"Ref": "AttachedProfileARN"
+				},
+				"BlockDeviceMappings": [
+					{
+						"DeviceName": {
+							"Fn::FindInMap": [
+								"OSMappings",
+								{
+									"Ref": "OSType"
+								},
+								"BlockDeviceName"
+							]
+						},
+						"Ebs": {
+							"VolumeSize": {
+								"Ref": "VolumeSize"
+							},
+							"DeleteOnTermination": "true"
+						}
+					}
+				]
+			}
+		}
+	},
+	"Outputs": {
+		"ASGID": {
+			"Description": "Auto scaling group ID of rp-avatar-reg",
+			"Value": {
+				"Ref": "AutoScalingGroup"
+			}
+		}
+	}
+}

@@ -1,0 +1,391 @@
+{
+	"Parameters": {
+		"Environment": {
+			"Description": "The environment to which the LB belongs to",
+			"Type": "String",
+			"AllowedValues": [
+				"dev",
+				"stage",
+				"prod"
+			],
+			"ConstraintDescription": "Must be valid environment name"
+		},
+		"DBInstanceClass": {
+			"Description": "DB instance class",
+			"Type": "String",
+			"Default": "db.m3.medium",
+			"AllowedValues": [
+				"db.m4.large",
+				"db.m4.xlarge",
+				"db.m4.2xlarge",
+				"db.m4.4xlarge",
+				"db.m4.10xlarge",
+				"db.m3.medium",
+				"db.m3.large",
+				"db.m3.xlarge",
+				"db.m3.2xlarge",
+				"db.r3.large",
+				"db.r3.xlarge",
+				"db.r3.2xlarge",
+				"db.r3.4xlarge",
+				"db.r3.8xlarge",
+				"db.t2.micro",
+				"db.t2.small",
+				"db.t2.medium",
+				"db.t2.large"
+			],
+			"ConstraintDescription": "must be a valid DB instance class."
+		},
+		"FoundationVPCID": {
+			"Description": "VPC ID of the foundation VPC",
+			"Type": "AWS::EC2::VPC::Id"
+		},
+		"VPCCidrBlock": {
+			"Description": "CIDR block of Public subnet. ",
+			"Type": "String"
+		},
+		"DBMasterUserName": {
+			"Description": "DB master user name",
+			"Type": "String",
+			"NoEcho": "true"
+		},
+		"DBMasterPassword": {
+			"Description": "DB master password",
+			"Type": "String",
+			"NoEcho": "true",
+			"AllowedPattern": "[a-zA-Z0-9]*",
+			"ConstraintDescription": "Password should be alphanumeric"
+		},
+		"AllocatedStorage": {
+			"Default": "100",
+			"Description": "Storage Size in GB",
+			"Type": "Number",
+			"MinValue": "10",
+			"MaxValue": "6144"
+		},
+		"StorageType": {
+			"Description": "storage type ",
+			"Type": "String",
+			"Default": "gp2",
+			"AllowedValues": [
+				"gp2",
+				"io1",
+				"standard"
+			],
+			"ConstraintDescription": "must be a valid storage type."
+		},
+		"IOPS": {
+			"Default": "1000",
+			"Description": "Storage Size in GB",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "100000"
+		},
+		"BackupRetentionPeriod": {
+			"Default": "7",
+			"Description": "The number of days for which automatic DB snapshots are retained",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "30"
+		},
+		"PreferredBackupWindow": {
+			"Description": "Format hh24:mi-hh24:mi, The daily time range (UTC) during which automated backups are created if automated backups are enabled",
+			"Default": "16:30-17:00",
+			"Type": "String",
+			"ConstraintDescription": "Format hh24:mi-hh24:mi , Must be at least 30 minutes.Must not conflict with the preferred maintenance window"
+		},
+		"PreferredMaintenanceWindow": {
+			"Description": "Format hh24:mi-hh24:mi, The weekly time range during which system maintenance can occur, in Universal Coordinated Time (UTC)",
+			"Default": "Wed:17:30-Wed:18:00",
+			"Type": "String",
+			"ConstraintDescription": "Format: ddd:hh24:mi-ddd:hh24:mi . Valid Days: Mon, Tue, Wed, Thu, Fri, Sat, Sun. Minimum 30-minute window."
+		},
+		"VPC": {
+			"Description": "Name of the VPC to which the pod. Eg: vpc1, vpc2",
+			"Type": "String"
+		},
+		"RDSInstanceName": {
+			"Description": "Name of the RDSInstanceName (<STACK>-<POD_TYPE>-<POD>-<SERVICE_NAME>-db). Eg: pie-dvc-pod1-connmgmt-db",
+			"Type": "String"
+		},
+		"SubnetIDs": {
+			"Description": "Comma separated list of subnet IDs to attach to DB. There cant be more than one subnet ID from same AZ",
+			"Type": "List<AWS::EC2::Subnet::Id>"
+		},
+		"TransactionIsolationLevel": {
+			"Description": "Sets the default transaction isolation level for the RDS",
+			"Type": "String",
+			"Default": "READ-COMMITTED",
+			"AllowedValues": [
+				"READ-UNCOMMITTED",
+				"READ-COMMITTED",
+				"REPEATABLE-READ",
+				"SERIALIZABLE"
+			],
+			"ConstraintDescription": "must be a valid transaction isolation level."
+		},
+		"WaitTimeout": {
+			"Description": "The number of seconds the server waits for activity on a non-interactive TCP/IP or UNIX File connection before closing it",
+			"Type": "Number",
+			"Default": "900",
+			"MinValue": "1",
+			"MaxValue": "31536000"
+		},
+		"SlowQueryLog": {
+			"Description": "Enable or disable the slow query log",
+			"Type": "Number",
+			"Default": "0",
+			"MinValue": "0",
+			"MaxValue": "1"
+		},
+		"GeneralLog": {
+			"Description": "Whether the general query log is enabled",
+			"Type": "Number",
+			"Default": "0",
+			"MinValue": "0",
+			"MaxValue": "1"
+		},
+		"LogOutputType": {
+			"Description": "Controls where to store query logs",
+			"Type": "String",
+			"Default": "FILE",
+			"AllowedValues": [
+				"FILE",
+				"TABLE",
+				"NONE"
+			],
+			"ConstraintDescription": "must be a valid output type"
+		},
+		"LongQueryTime": {
+			"Description": "Defines what MySQL considers long queries",
+			"Type": "Number",
+			"Default": "1",
+			"MinValue": "0",
+			"MaxValue": "31536000"
+		},
+		"MultiAZ": {
+			"Description": "provide enhanced availability and durability for Database",
+			"Type": "String",
+			"Default": "true",
+			"AllowedValues": [
+				"true",
+				"false"
+			]
+		}
+	},
+	"Resources": {
+		"ConnMgmtDBVPCSecurityGroup": {
+			"Type": "AWS::EC2::SecurityGroup",
+			"Properties": {
+				"GroupDescription": "Allow access from VPC hosts and Jenkins slave to incoming 3306",
+				"SecurityGroupIngress": [
+					{
+						"IpProtocol": "tcp",
+						"FromPort": "3306",
+						"ToPort": "3306",
+						"CidrIp": {
+							"Ref": "VPCCidrBlock"
+						}
+					}
+				],
+				"VpcId": {
+					"Ref": "FoundationVPCID"
+				}
+			}
+		},
+		"ConnMgmtDBSubnetGroup": {
+			"Type": "AWS::RDS::DBSubnetGroup",
+			"Properties": {
+				"DBSubnetGroupDescription": "This is subnet group for RDS",
+				"SubnetIds": {
+					"Ref": "SubnetIDs"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		},
+		"ConnMgmtDBInstance": {
+			"Type": "AWS::RDS::DBInstance",
+			"Properties": {
+				"AllocatedStorage": {
+					"Ref": "AllocatedStorage"
+				},
+				"DBInstanceClass": {
+					"Ref": "DBInstanceClass"
+				},
+				"VPCSecurityGroups": [
+					{
+						"Ref": "ConnMgmtDBVPCSecurityGroup"
+					}
+				],
+				"DBParameterGroupName": {
+					"Ref": "rdsParameterGroup"
+				},
+				"DBSubnetGroupName": {
+					"Ref": "ConnMgmtDBSubnetGroup"
+				},
+				"Engine": "MySQL",
+				"EngineVersion": "5.6.41",
+				"MasterUserPassword": {
+					"Ref": "DBMasterPassword"
+				},
+				"MasterUsername": {
+					"Ref": "DBMasterUserName"
+				},
+				"PubliclyAccessible": "false",
+				"StorageEncrypted": "true",
+				"DBInstanceIdentifier": {
+					"Ref": "RDSInstanceName"
+				},
+				"BackupRetentionPeriod": {
+					"Ref": "BackupRetentionPeriod"
+				},
+				"PreferredBackupWindow": {
+					"Ref": "PreferredBackupWindow"
+				},
+				"PreferredMaintenanceWindow": {
+					"Ref": "PreferredMaintenanceWindow"
+				},
+				"Iops": {
+					"Ref": "IOPS"
+				},
+				"StorageType": {
+					"Ref": "StorageType"
+				},
+				"MultiAZ": {
+					"Ref": "MultiAZ"
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "Pod",
+						"Value": {
+							"Ref": "Pod"
+						}
+					},
+					{
+						"Key": "Name",
+						"Value": {
+							"Ref": "RDSInstanceName"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					},
+					{
+						"Key": "PodType",
+						"Value": {
+							"Ref": "PodType"
+						}
+					}
+				]
+			},
+			"DeletionPolicy": "Snapshot"
+		},
+		"rdsParameterGroup": {
+			"Type": "AWS::RDS::DBParameterGroup",
+			"Properties": {
+				"Description": "This is the parameter group of RDS",
+				"Family": "MySQL5.6",
+				"Parameters": {
+					"tx_isolation": {
+						"Ref": "TransactionIsolationLevel"
+					},
+					"wait_timeout": {
+						"Ref": "WaitTimeout"
+					},
+					"slow_query_log": {
+						"Ref": "SlowQueryLog"
+					},
+					"general_log": {
+						"Ref": "GeneralLog"
+					},
+					"log_output": {
+						"Ref": "LogOutputType"
+					},
+					"long_query_time": {
+						"Ref": "LongQueryTime"
+					}
+				},
+				"Tags": [
+					{
+						"Key": "Environment",
+						"Value": {
+							"Ref": "Environment"
+						}
+					},
+					{
+						"Key": "Name",
+						"Value": {
+							"Ref": "RDSInstanceName"
+						}
+					},
+					{
+						"Key": "VPC",
+						"Value": {
+							"Ref": "VPC"
+						}
+					}
+				]
+			}
+		}
+	},
+	"Outputs": {
+		"ConnMgmtDBEndpointAddress": {
+			"Description": "DNS name of Foundation ConnMgmtDB instance",
+			"Value": {
+				"Fn::GetAtt": [
+					"ConnMgmtDBInstance",
+					"Endpoint.Address"
+				]
+			}
+		},
+		"ConnMgmtDBPort": {
+			"Description": "Port on which Foundation ConnMgmtDB instance is running",
+			"Value": {
+				"Fn::GetAtt": [
+					"ConnMgmtDBInstance",
+					"Endpoint.Port"
+				]
+			}
+		},
+		"ConnMgmtDBSubnetGroupID": {
+			"Description": "ID of the ConnMgmtDBSubnetGroup",
+			"Value": {
+				"Ref": "ConnMgmtDBSubnetGroup"
+			}
+		},
+		"RDSParameterGroup": {
+			"Description": "Parameter group for vpprtDB instance",
+			"Value": {
+				"Ref": "rdsParameterGroup"
+			}
+		},
+		"ConnMgmtDBVPCSecurityGroupID": {
+			"Description": "ID of the ConnMgmtDBVPCSecurityGroup",
+			"Value": {
+				"Ref": "ConnMgmtDBVPCSecurityGroup"
+			}
+		}
+	}
+}
